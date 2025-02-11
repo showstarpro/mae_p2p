@@ -17,6 +17,7 @@ import torch.nn as nn
 from timm.models.vision_transformer import PatchEmbed, Block
 
 from util.pos_embed import get_2d_sincos_pos_embed
+import torch.nn.functional as F
 
 
 class MaskedAutoencoderViT(nn.Module):
@@ -147,7 +148,7 @@ class MaskedAutoencoderViT(nn.Module):
 
         return x_masked, mask, ids_restore
 
-    def forward_encoder(self, x, mask_ratio):
+    def forward_encoder(self, x, mask_ratio, num_images=20):
         # embed patches
         x = self.patch_embed(x)
 
@@ -155,6 +156,9 @@ class MaskedAutoencoderViT(nn.Module):
         x = x + self.pos_embed[:, 1:, :]
 
         # masking: length -> length * mask_ratio
+        ### expand N times 
+        x = x.repeat(num_images, 1, 1)
+
         x, mask, ids_restore = self.random_masking(x, mask_ratio)
 
         # append cls token
@@ -166,6 +170,9 @@ class MaskedAutoencoderViT(nn.Module):
         for blk in self.blocks:
             x = blk(x)
         x = self.norm(x)
+
+        ### return cls token
+        x = x[:, 0, :]
 
         return x, mask, ids_restore
 
@@ -213,27 +220,82 @@ class MaskedAutoencoderViT(nn.Module):
         loss = (loss * mask).sum() / mask.sum()  # mean loss on removed patches
         return loss
 
-    def forward(self, imgs, imgs_past, pred_past, lamda, mask_ratio=0.75):
-        latent, mask, ids_restore = self.forward_encoder(imgs, mask_ratio)
-        pred = self.forward_decoder(latent, ids_restore)  # [N, L, p*p*3]
-        loss = self.forward_loss(imgs, pred, mask)
+    
+    def chunk_avg(self, x, n_chunks=20, normalize=False):
+        x_list = x.chunk(n_chunks,dim=0)
+        x = torch.stack(x_list,dim=0)
+        if not normalize:
+            return x.mean(0)
+        else:
+            return F.normalize(x.mean(0), dim=1)
 
-        pred = self.unpatchify(pred)
+    def sim_loss(self, z_list, z_avg):
+        z_sim = 0
+        num_patch = len(z_list)
+        z_list = torch.stack(list(z_list), dim=0)
+        z_avg = z_list.mean(dim=0)
         
+        z_sim = 0
+        for i in range(num_patch):
+            z_sim += F.cosine_similarity(z_list[i], z_avg, dim=1).mean()
+            
+        z_sim = z_sim/num_patch
+        z_sim_out = z_sim.clone().detach()
+                
+        return -z_sim, z_sim_out
+
+    def tcr_loss(self, z, num_patches=20, eps=0.5):
+        z_list = z.chunk(num_patches, dim=0)
+        loss = 0 
+        for i in range(num_patches):
+            x = z_list[i]
+            x = x.T
+            p, m = x.shape  #[d, B]
+            I = torch.eye(p, device=x.device)
+            scalar = p / (m * eps)
+            logdet = - torch.logdet(I + scalar * x.matmul(x.T))/2
+            loss += logdet
+
+        return loss
+
+    def forward(self, imgs, imgs_past, pred_past, lamda, mask_ratio=0.75, num_images=20):
+        latent, mask, ids_restore = self.forward_encoder(imgs, mask_ratio)
+        cls_token = latent
+
+        cls_list = cls_token.chunk(num_images, dim=0)
+        cls_avg = self.chunk_avg(cls_token, n_chunks=num_images)
+
+        loss_sim, _ = self.sim_loss(cls_list, cls_avg)
+        loss_ctr = self.tcr_loss(cls_token, num_patches=num_images)
+        print(loss_sim)
+        print(loss_ctr)
+
+        loss = 200 *  loss_sim + loss_ctr
+
+
         # imgs_past
         # 考虑在latenet进行VICReg的对比损失
         if imgs_past != None:
             latent_old, mask_old, ids_restore_old = self.forward_encoder(imgs_past, mask_ratio)
-            pred_old = self.forward_decoder(latent_old, ids_restore_old)  # [N, L, p*p*3]
-            loss_old = self.forward_loss(pred_past, pred_old, mask_old)  
+            cls_token_old = latent_old
+
+            cls_list_old = cls_token_old.chunk(num_images, dim=0)
+            cls_avg_old = self.chunk_avg(cls_token_old, n_chunks=num_images)
+
+            loss_sim_old, _ = self.sim_loss(cls_list_old, cls_avg_old)
+            loss_ctr_old = self.tcr_loss(cls_token_old, num_patches=num_images)
+            print(loss_sim_old)
+            print(loss_ctr_old)
+
+            loss_old = 200 *  loss_sim_old + loss_ctr_old
 
             # total loss
-            loss = loss + lamda * loss_old  
+            loss = loss + lamda * loss_old 
         else:
             pred_old = None
             mask_old = None
 
-        return loss, pred, mask, pred_old, mask_old
+        return loss
 
 
 def mae_vit_base_patch16_dec512d8b(**kwargs):

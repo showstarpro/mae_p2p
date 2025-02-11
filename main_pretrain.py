@@ -49,7 +49,7 @@ def get_args_parser():
                     help='lamda ratio.')
 
     # Model parameters
-    parser.add_argument('--model', default='mae_vit_base_patch16 ', type=str, metavar='MODEL',
+    parser.add_argument('--model', default='mae_vit_base_patch16', type=str, metavar='MODEL',
                         help='Name of model to train')
 
     parser.add_argument('--input_size', default=224, type=int,
@@ -77,7 +77,7 @@ def get_args_parser():
                         help='epochs to warmup LR')
 
     # Dataset parameters
-    parser.add_argument('--data_path', default='/home/dataset/ImageNet/ ', type=str,
+    parser.add_argument('--data_path', default='/lpai/dataset/imagenet-1k/0-1-0/', type=str,
                         help='dataset path')
 
     parser.add_argument('--output_dir', default='./p2p_vitb',
