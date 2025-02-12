@@ -28,7 +28,6 @@ torchrun --nproc_per_node=8 --nnodes=1 main_pretrain.py \
     --log_dir /lpai/output/models/p2p_vitb_200_05 \
     --lamda 0.5 \
     --eps 24 \
-    # --distributed
 
 torchrun --nproc_per_node=8 --nnodes=1  main_finetune.py \
     --batch_size 128 \
@@ -38,7 +37,5 @@ torchrun --nproc_per_node=8 --nnodes=1  main_finetune.py \
     --blr 5e-4 --layer_decay 0.65 \
     --weight_decay 0.05 --drop_path 0.1 --mixup 0.8 --cutmix 1.0 --reprob 0.25 \
     --dist_eval --data_path ${data_path} \
-    --output_dir /lpai/output/models/p2p_vitb_200_05_ft\
-    --log_dir /lpai/output/models/p2p_vitb_200_05_ft\
-
-sleep 20d;
+    --output_dir /lpai/output/models/p2p_vitb_200_05 _ft\
+    --log_dir /lpai/output/models/p2p_vitb_200_05_ft \

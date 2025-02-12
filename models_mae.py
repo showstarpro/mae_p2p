@@ -276,7 +276,7 @@ class MaskedAutoencoderViT(nn.Module):
         print(loss_sim)
         print(loss_ctr)
 
-        loss = 200 *  loss_sim + loss_ctr
+        loss = 200 *  loss_sim +  0.1 * loss_ctr
 
 
         # imgs_past
@@ -293,7 +293,7 @@ class MaskedAutoencoderViT(nn.Module):
             print(loss_sim_old)
             print(loss_ctr_old)
 
-            loss_old = 200 *  loss_sim_old + loss_ctr_old
+            loss_old = 200 *  loss_sim_old + 0.1 * loss_ctr_old
 
             # total loss
             loss = loss + lamda * loss_old 
@@ -301,7 +301,7 @@ class MaskedAutoencoderViT(nn.Module):
             pred_old = None
             mask_old = None
 
-        return loss
+        return loss, loss_sim, loss_ctr
 
 
 def mae_vit_base_patch16_dec512d8b(**kwargs):
