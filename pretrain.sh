@@ -27,6 +27,7 @@ torchrun --nproc_per_node=8 --nnodes=1 main_pretrain.py \
     --output_dir $output_dir\
     --log_dir $output_dir \
     --lamda 0.5 \
+    --num_images 20 \
 
 torchrun --nproc_per_node=8 --nnodes=1  main_finetune.py \
     --batch_size 128 \

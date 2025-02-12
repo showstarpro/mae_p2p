@@ -49,6 +49,8 @@ def get_args_parser():
                     help='lamda ratio.')
     parser.add_argument('--eps', default=3, type=float,
                     help='lamda ratio.')
+    parser.add_argument('--num_images', default=20, type=int,
+                    help='lamda ratio.')
 
     # Model parameters
     parser.add_argument('--model', default='mae_vit_base_patch16', type=str, metavar='MODEL',

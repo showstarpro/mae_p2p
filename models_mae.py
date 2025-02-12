@@ -283,7 +283,7 @@ class MaskedAutoencoderViT(nn.Module):
         return loss
 
     def forward(self, imgs, imgs_past, pred_past, lamda, mask_ratio=0.75, num_images=20, eps=3):
-        latent, mask, ids_restore = self.forward_encoder(imgs, mask_ratio)
+        latent, mask, ids_restore = self.forward_encoder(imgs, mask_ratio, num_images=num_images)
         cls_token = latent
 
         cls_list = cls_token.chunk(num_images, dim=0)
@@ -308,7 +308,7 @@ class MaskedAutoencoderViT(nn.Module):
         # imgs_past
         # 考虑在latenet进行VICReg的对比损失
         if imgs_past != None:
-            latent_old, mask_old, ids_restore_old = self.forward_encoder(imgs_past, mask_ratio)
+            latent_old, mask_old, ids_restore_old = self.forward_encoder(imgs_past, mask_ratio, num_images=num_images)
             cls_token_old = latent_old
 
             cls_list_old = cls_token_old.chunk(num_images, dim=0)
