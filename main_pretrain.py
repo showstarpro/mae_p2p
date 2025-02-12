@@ -38,7 +38,7 @@ import pdb
 
 def get_args_parser():
     parser = argparse.ArgumentParser('MAE pre-training', add_help=False)
-    parser.add_argument('--batch_size', default=2, type=int,
+    parser.add_argument('--batch_size', default=32, type=int,
                         help='Batch size per GPU (effective batch size is batch_size * accum_iter * # gpus')
     parser.add_argument('--epochs', default=300, type=int)
     parser.add_argument('--accum_iter', default=1, type=int,
@@ -46,6 +46,8 @@ def get_args_parser():
 
     # add new parameters
     parser.add_argument('--lamda', default=1, type=float,
+                    help='lamda ratio.')
+    parser.add_argument('--eps', default=3, type=float,
                     help='lamda ratio.')
 
     # Model parameters

@@ -244,7 +244,7 @@ class MaskedAutoencoderViT(nn.Module):
                 
         return -z_sim, z_sim_out
 
-    def tcr_loss(self, z, num_patches=20, eps=0.5):
+    def tcr_loss(self, z, num_patches=20, eps=3):
         z_list = z.chunk(num_patches, dim=0)
         loss = 0 
         for i in range(num_patches):
@@ -258,15 +258,21 @@ class MaskedAutoencoderViT(nn.Module):
 
         return loss
 
-    def forward(self, imgs, imgs_past, pred_past, lamda, mask_ratio=0.75, num_images=20):
+    def forward(self, imgs, imgs_past, pred_past, lamda, mask_ratio=0.75, num_images=20, eps=3):
         latent, mask, ids_restore = self.forward_encoder(imgs, mask_ratio)
         cls_token = latent
 
         cls_list = cls_token.chunk(num_images, dim=0)
         cls_avg = self.chunk_avg(cls_token, n_chunks=num_images)
 
+        print("cls_token size:" )
+        print( cls_token.size())
+        print("len of cls_list: " )
+        print(len(cls_list))
+        print("cls_list[0] size:")
+        print( cls_list[0].size())
         loss_sim, _ = self.sim_loss(cls_list, cls_avg)
-        loss_ctr = self.tcr_loss(cls_token, num_patches=num_images)
+        loss_ctr = self.tcr_loss(cls_token, num_patches=num_images, eps=eps)
         print(loss_sim)
         print(loss_ctr)
 
@@ -283,7 +289,7 @@ class MaskedAutoencoderViT(nn.Module):
             cls_avg_old = self.chunk_avg(cls_token_old, n_chunks=num_images)
 
             loss_sim_old, _ = self.sim_loss(cls_list_old, cls_avg_old)
-            loss_ctr_old = self.tcr_loss(cls_token_old, num_patches=num_images)
+            loss_ctr_old = self.tcr_loss(cls_token_old, num_patches=num_images, eps=eps)
             print(loss_sim_old)
             print(loss_ctr_old)
 
