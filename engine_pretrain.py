@@ -50,7 +50,7 @@ def train_one_epoch(model: torch.nn.Module,
         samples = samples.to(device, non_blocking=True)
 
         with torch.cuda.amp.autocast():
-            loss = model(samples, samples_past, pred_past, lamda, mask_ratio=args.mask_ratio, eps=args.eps)
+            loss, loss_sim, loss_ctr = model(samples, samples_past, pred_past, lamda, mask_ratio=args.mask_ratio, eps=args.eps)
             samples_past = samples.clone().detach()
 
         loss_value = loss.item()
