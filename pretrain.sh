@@ -1,7 +1,7 @@
 source /root/anaconda3/etc/profile.d/conda.sh ;
 unset LD_LIBRARY_PATH;
 
-conda activate pami;
+conda activate superclass;
 
 cd /lpai ;
 
@@ -10,6 +10,7 @@ git clone -b p2p https://github.com/showstarpro/mae_p2p.git mae_p2p;
 cd ./mae_p2p;
 
 data_path=/lpai/dataset/imagenet-1k/0-1-0/
+output_dir = /lpai/output/models/vitb_num20_lamda05_mask075
 
 export NCCL_DEBUG=INFO
 export NCCL_IB_DISABLE=1  # 可能需要禁用 InfiniBand
@@ -24,18 +25,19 @@ torchrun --nproc_per_node=8 --nnodes=1 main_pretrain.py \
     --warmup_epochs 5 \
     --blr 1.5e-4 --weight_decay 0.05 \
     --data_path ${data_path} \
-    --output_dir /lpai/output/models/p2p_vitb_200_05\
-    --log_dir /lpai/output/models/p2p_vitb_200_05 \
+    --output_dir $output_dir\
+    --log_dir $output_dir \
     --lamda 0.5 \
-    --eps 24 \
 
 torchrun --nproc_per_node=8 --nnodes=1  main_finetune.py \
     --batch_size 128 \
     --model vit_base_patch16 \
-    --finetune /lpai/output/models/p2p_vitb_200_05/checkpoint-29.pth \
+    --finetune $output_dir/checkpoint-29.pth \
     --epochs 100 \
     --blr 5e-4 --layer_decay 0.65 \
     --weight_decay 0.05 --drop_path 0.1 --mixup 0.8 --cutmix 1.0 --reprob 0.25 \
     --dist_eval --data_path ${data_path} \
-    --output_dir /lpai/output/models/p2p_vitb_200_05 _ft\
-    --log_dir /lpai/output/models/p2p_vitb_200_05_ft \
+    --output_dir ${output_dir}_ft\
+    --log_dir ${output_dir}_ft \
+
+sleep 1d;
