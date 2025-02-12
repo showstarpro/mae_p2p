@@ -238,19 +238,21 @@ class MaskedAutoencoderViT(nn.Module):
         z_sim = 0
         num_patch = len(z_list)
         z_list = torch.stack(list(z_list), dim=0)
-        z_avg = z_list.mean(dim=0)
+        # z_avg = z_list.mean(dim=0)
         
         z_sim = 0
         for i in range(num_patch):
-            z_sim += F.cosine_similarity(z_list[i], z_avg, dim=1).mean()
+            # z_sim += F.cosine_similarity(z_list[i], z_avg, dim=1).mean()
+            z_sim += F.mse_loss(z_list[i], z_avg)
             
         z_sim = z_sim/num_patch
         z_sim_out = z_sim.clone().detach()
                 
-        return -z_sim, z_sim_out
+        return z_sim, z_sim_out
 
-    def tcr_loss(self, z, num_patches=20, eps=3):
+    def tcr_loss(self, z, z_old, num_patches=20, eps=3):
         z_list = z.chunk(num_patches, dim=0)
+        z_old_list = z_old.chunk(num_patches, dim=0)
         loss = 0 
         for i in range(num_patches):
             x = z_list[i]
@@ -263,15 +265,18 @@ class MaskedAutoencoderViT(nn.Module):
 
         return loss
 
-    def cov_loss(self, z, num_patches=20, eps=3):
+    def cov_loss(self, z, z_old, num_patches=20, eps=3):
         z_list = z.chunk(num_patches, dim=0)
+        z_old_list = z_old.chunk(num_patches, dim=0)
         loss = 0 
         for i in range(num_patches):
             x = z_list[i]
+            x_old = z_old_list[i]
+
             b, d = x.shape  #[d, B]
             x = x - x.mean(dim=0)
 
-            cov = (x.T @ x) / (b -1)
+            cov = (x_old.T @ x) / (b -1)
             cov_loss = off_diagonal(cov).pow(2).sum().div(d)
             loss += cov_loss
 
@@ -291,7 +296,7 @@ class MaskedAutoencoderViT(nn.Module):
         # print("cls_list[0] size:")
         # print( cls_list[0].size())
         loss_sim, _ = self.sim_loss(cls_list, cls_avg)
-        loss_ctr = self.cov_loss(cls_token, num_patches=num_images, eps=eps)
+        loss_ctr = self.cov_loss(cls_token, cls_token, num_patches=num_images, eps=eps)
         print("loss_sim:")
         print(loss_sim)
         print("loss_ctr:")
@@ -308,13 +313,25 @@ class MaskedAutoencoderViT(nn.Module):
 
             cls_list_old = cls_token_old.chunk(num_images, dim=0)
             cls_avg_old = self.chunk_avg(cls_token_old, n_chunks=num_images)
+            
+            pred_past = pred_past.to(latent_old.device)
+            cls_list_pre = pred_past.chunk(num_images, dim=0)
+            cls_avg_pre = self.chunk_avg(pred_past, n_chunks=num_images)
+            moment_avg =  0.5 * cls_avg_old.detach() + (1- 0.5) * cls_avg_pre.detach()
+            moment_list = (0.5 * pred_past.detach() + ((1- 0.5) * cls_token_old.detach())).chunk(num_images, dim=0)
 
-            loss_sim_old, _ = self.sim_loss(cls_list_old, cls_avg_old)
-            loss_ctr_old = self.cov_loss(cls_token_old, num_patches=num_images, eps=eps)
+
+            loss_sim_old, _ = self.sim_loss(cls_list_old, moment_avg)
+            loss_sim_pre, _ = self.sim_loss(moment_list, cls_avg_old)
+            loss_sim_old = (loss_sim_old + loss_sim_pre)/2
+
+            loss_ctr_old = self.cov_loss(cls_token_old, pred_past, num_patches=num_images, eps=eps)
+
+            loss_old = 200 *  loss_sim_old + 0.01 * loss_ctr_old
+            print("loss_sim_old:")
             print(loss_sim_old)
+            print("loss_ctr_old:")
             print(loss_ctr_old)
-
-            loss_old = 20 *  loss_sim_old + 0.01 * loss_ctr_old
 
             # total loss
             loss = loss + lamda * loss_old 
@@ -322,7 +339,7 @@ class MaskedAutoencoderViT(nn.Module):
             pred_old = None
             mask_old = None
 
-        return loss, loss_sim, loss_ctr
+        return loss, cls_token
 
 
 def mae_vit_base_patch16_dec512d8b(**kwargs):

@@ -1,5 +1,4 @@
 source /root/anaconda3/etc/profile.d/conda.sh ;
-unset LD_LIBRARY_PATH;
 
 conda activate superclass;
 
@@ -10,7 +9,7 @@ git clone -b p2p https://github.com/showstarpro/mae_p2p.git mae_p2p;
 cd ./mae_p2p;
 
 data_path=/lpai/dataset/imagenet-1k/0-1-0/
-output_dir = /lpai/output/models/vitb_num20_lamda05_mask075
+output_dir=/lpai/output/models/vitb_num20_lamda05_mask075
 
 export NCCL_DEBUG=INFO
 export NCCL_IB_DISABLE=1  # 可能需要禁用 InfiniBand
